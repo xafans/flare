@@ -1,0 +1,48 @@
+{
+  "name": "flare",
+  "type": "module",
+  "version": "0.1.0",
+  "description": "**Blazing fast event aggregator for JavaScript & TypeScript.**",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest --config jest.config.js",
+    "format": "prettier --write \"src/**/*.(js|ts)\"",
+    "version": "npm run format && git add -A src",
+    "postversion": "git push && git push --tags"
+  },
+  "devDependencies": {
+    "jest": "^30.0.5",
+    "prettier": "^3.6.2",
+    "ts-jest": "^29.4.1",
+    "typescript": "^5.9.2"
+  },
+  "files": [
+    "dist"
+  ],
+  "license": "MIT",
+  "author": "Xafans",
+  "keywords": [
+    "event",
+    "aggregator",
+    "pubsub",
+    "pub-sub",
+    "pubsub",
+    "pub-sub",
+    "event-emitter",
+    "eventemitter",
+    "event-emitter",
+    "eventemitter",
+    "typescript",
+    "javascript"
+  ],
+  "homepage": "https://github.com/xafans/flare#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xafans/flare.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xafans/flare/issues"
+  }
+}

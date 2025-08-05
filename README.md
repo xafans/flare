@@ -1,2 +1,3 @@
-# flare
-A simple but powerful event aggregator for typescript
+# Flare 🔥
+
+**Blazing fast event aggregator for JavaScript & TypeScript.**

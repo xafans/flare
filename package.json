@@ -2,17 +2,18 @@
   "name": "flare",
   "type": "module",
   "version": "0.1.0",
-  "description": "**Blazing fast event aggregator for JavaScript & TypeScript.**",
+  "description": "Blazing fast event aggregator for JavaScript & TypeScript.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "test": "jest --config jest.config.js",
+    "test": "jest",
     "format": "prettier --write \"src/**/*.(js|ts)\"",
     "version": "npm run format && git add -A src",
     "postversion": "git push && git push --tags"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "jest": "^30.0.5",
     "prettier": "^3.6.2",
     "ts-jest": "^29.4.1",

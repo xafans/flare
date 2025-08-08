@@ -1,4 +1,4 @@
-import { Handler, IFlareCatchOptions, IFlareFireOptions } from "types";
+import { Handler, IFlareCatchOptions, IFlareFireOptions } from './types';
 
 export class Flare<Events extends Record<string, any>> {
     private handlers: {
@@ -8,16 +8,16 @@ export class Flare<Events extends Record<string, any>> {
     fire<K extends keyof Events>(
         event: K,
         payload: Events[K],
-        options?: IFlareFireOptions): void {
-
-        this.handlers[event]?.forEach(handler => handler(payload));
+        options?: IFlareFireOptions,
+    ): void {
+        this.handlers[event]?.forEach((handler) => handler(payload));
     }
 
     catch<K extends keyof Events>(
         event: K,
         handler: Handler<Events[K]>,
-        options?: boolean | IFlareCatchOptions): () => void {
-
+        options?: boolean | IFlareCatchOptions,
+    ): () => void {
         let opt = {} as IFlareCatchOptions;
         if (options) {
             if (options === true) {
@@ -43,7 +43,10 @@ export class Flare<Events extends Record<string, any>> {
         return () => this.release(event, handler);
     }
 
-    release<K extends keyof Events>(event: K, handler: Handler<Events[K]>): void {
+    release<K extends keyof Events>(
+        event: K,
+        handler: Handler<Events[K]>,
+    ): void {
         this.handlers[event]?.delete(handler);
     }
 

@@ -1,0 +1,1 @@
+export type Handler<Payload> = (payload: Payload) => void;

@@ -7,19 +7,19 @@ describe('Flare class', () => {
         flare = new Flare();
     });
 
-    it('When I register a handler for an event, and then fire that event, the handler should be called with the correct payload.', () => {});
+    it('calls the handler with the correct payload when an event is fired after registration', () => {});
 
-    it('When a handler is registered with once: true, it should be called only the first time the event is fired, and automatically removed afterwards.', () => {});
+    it('calls the handler only once when registered with once: true, and removes it afterward', () => {});
 
-    it('The function returned by catch should remove the handler so that firing the event afterward does not call it anymore.', () => {});
+    it('removes the handler when the function returned by catch is called, so it is not called on subsequent events', () => {});
 
-    it('When an event is fired with a payload, all handlers registered for that event should be called with that payload.', () => {});
+    it('calls all handlers registered for an event with the correct payload when the event is fired', () => {});
 
-    it('When an event is fired with no registered handlers, nothing should happen (no errors).', () => {});
+    it('does nothing (no errors) when firing an event with no registered handlers', () => {});
 
-    it('Releasing a specific handler should prevent it from being called, but leave other handlers for the same event untouched.', () => {});
+    it('prevents a released handler from being called, while leaving other handlers for the event intact', () => {});
 
-    it('Releasing a handler that was never registered should do nothing (no errors)', () => {});
+    it('does nothing (no errors) when releasing a handler that was never registered', () => {});
 
-    it('After calling releaseAll, firing any event should not call any handlers.', () => {});
+    it('does not call any handlers after releaseAll has been called and an event is fired', () => {});
 });

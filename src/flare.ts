@@ -32,10 +32,11 @@ export class Flare<Events extends Record<string, any>> {
         }
 
         if (opt.once) {
-            this.handlers[event]!.add((payload) => {
+            const wrappedHandler = (payload: Events[K]) => {
                 handler(payload);
-                this.release(event, handler);
-            });
+                this.release(event, wrappedHandler);
+            };
+            this.handlers[event]!.add(wrappedHandler);
         } else {
             this.handlers[event]!.add(handler);
         }

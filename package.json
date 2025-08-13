@@ -7,7 +7,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "test": "jest",
+    "test": "jest --verbose --coverage",
     "format": "prettier --write \"src/**/*.(js|ts)\"",
     "version": "npm run format && git add -A src",
     "postversion": "git push && git push --tags"

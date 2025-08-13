@@ -126,7 +126,7 @@ describe('Flare class', () => {
             flare.release(eventName, handler);
             flare.fire(eventName, payload);
 
-            // Act
+            // Assert
             expect(handler).not.toHaveBeenCalled();
         },
     );

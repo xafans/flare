@@ -10,7 +10,7 @@ describe('Flare class', () => {
         flare = new Flare();
     });
 
-    test('fires and catches a basic event', () => {
+    test('basic fire and catch', () => {
         // Arrange
         const handler = jest.fn();
         flare.catch(EVENT_NAME, handler);

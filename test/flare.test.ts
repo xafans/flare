@@ -10,7 +10,7 @@ describe('Flare class', () => {
         flare = new Flare();
     });
 
-    it('calls the handler with the correct payload when an event is fired after registration', () => {
+    test('basic fire and catch', () => {
         // Arrange
         const handler = jest.fn();
         flare.catch(EVENT_NAME, handler);
@@ -22,7 +22,7 @@ describe('Flare class', () => {
         expect(handler).toHaveBeenCalledWith(PAYLOAD);
     });
 
-    it('calls the handler only once when registered with once: true, and removes it afterward', () => {
+    test('fires with once: true option', () => {
         // Arrange
         const handler = jest.fn();
         flare.catch(EVENT_NAME, handler, { once: true });
@@ -35,21 +35,7 @@ describe('Flare class', () => {
         expect(handler).toHaveBeenCalledTimes(1);
     });
 
-    it('removes the handler when the function returned by catch is called, so it is not called on subsequent events', () => {
-        // Arrange
-        const handler = jest.fn();
-        const release = flare.catch(EVENT_NAME, handler);
-
-        // Act
-        flare.fire(EVENT_NAME, PAYLOAD);
-        release();
-        flare.fire(EVENT_NAME, PAYLOAD);
-
-        // Assert
-        expect(handler).toHaveBeenCalledTimes(1);
-    });
-
-    it('calls all handlers registered for an event with the correct payload when the event is fired', () => {
+    test('fires and catch multiple handlers event', () => {
         // Arrange
         const handler1 = jest.fn();
         const handler2 = jest.fn();
@@ -64,7 +50,47 @@ describe('Flare class', () => {
         expect(handler2).toHaveBeenCalledWith(PAYLOAD);
     });
 
-    it('does nothing (no errors) when firing an event with no registered handlers', () => {
+    test('release', () => {
+        // Arrange
+        const handler = jest.fn();
+        flare.catch(EVENT_NAME, handler);
+
+        // Act
+        flare.release(EVENT_NAME, handler);
+        flare.fire(EVENT_NAME, PAYLOAD);
+
+        // Assert
+        expect(handler).not.toHaveBeenCalled();
+    });
+
+    test('callback of catch', () => {
+        // Arrange
+        const handler = jest.fn();
+        const release = flare.catch(EVENT_NAME, handler);
+
+        // Act
+        flare.fire(EVENT_NAME, PAYLOAD);
+        release();
+        flare.fire(EVENT_NAME, PAYLOAD);
+
+        // Assert
+        expect(handler).toHaveBeenCalledTimes(1);
+    });
+
+    test('releaseAll', () => {
+        // Arrange
+        const handler = jest.fn();
+        flare.catch(EVENT_NAME, handler);
+
+        // Act
+        flare.releaseAll();
+        flare.fire(EVENT_NAME, PAYLOAD);
+
+        // Assert
+        expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('fires an event with no registered handlers and does nothing (no errors)', () => {
         // Arrange
         // (no setup needed)
 
@@ -72,7 +98,7 @@ describe('Flare class', () => {
         expect(() => flare.fire(EVENT_NAME, PAYLOAD)).not.toThrow();
     });
 
-    it('prevents a released handler from being called, while leaving other handlers for the event intact', () => {
+    it('skips released handler but call others when event fires', () => {
         // Arrange
         const handler1 = jest.fn();
         const handler2 = jest.fn();
@@ -88,24 +114,11 @@ describe('Flare class', () => {
         expect(handler2).toHaveBeenCalledWith(PAYLOAD);
     });
 
-    it('does nothing (no errors) when releasing a handler that was never registered', () => {
+    it('releases an unregistered handler and does nothing (no errors)', () => {
         // Arrange
         const handler = jest.fn();
 
         // Act & Assert
         expect(() => flare.release(EVENT_NAME, handler)).not.toThrow();
-    });
-
-    it('does not call any handlers after releaseAll has been called and an event is fired', () => {
-        // Arrange
-        const handler = jest.fn();
-        flare.catch(EVENT_NAME, handler);
-
-        // Act
-        flare.releaseAll();
-        flare.fire(EVENT_NAME, PAYLOAD);
-
-        // Assert
-        expect(handler).not.toHaveBeenCalled();
     });
 });

@@ -1,8 +1,5 @@
 import Flare from '../src';
 
-const EVENT_NAME = 'EVENT_NAME';
-const PAYLOAD = 'PAYLOAD';
-
 describe('Flare class', () => {
     let flare: Flare<Record<string, any>>;
 

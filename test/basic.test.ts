@@ -1,18 +1,9 @@
 import Flare, { flare } from '../src';
 
-const EVENT_NAME = 'EVENT_NAME';
-const PAYLOAD = 'PAYLOAD';
-
-export type TestEvents = {
-    USER_LOGGED_IN: { userId: string };
-    USER_LOGGED_OUT: undefined;
-    NOTIFICATION_RECEIVED: {
-        message: string;
-        severity: 'info' | 'warning' | 'error';
-    };
-};
-
 test('basic', () => {
+    const PAYLOAD = 'PAYLOAD';
+    const EVENT_NAME = 'EVENT_NAME';
+
     flare.catch(EVENT_NAME, (p) => {
         expect(p).toBe(PAYLOAD);
     });
@@ -20,11 +11,18 @@ test('basic', () => {
     flare.fire(EVENT_NAME, PAYLOAD);
 });
 
+// ==================== custom event type ====================
+
+type TestEvents = {
+    TEST_EVENT: { testId: string };
+};
+
 test('event type', () => {
     const flare = new Flare<TestEvents>();
-    flare.catch('USER_LOGGED_IN', (payload) => {
-        expect(payload).toEqual({ userId: '123' });
+
+    flare.catch('TEST_EVENT', (payload) => {
+        expect(payload).toEqual({ testId: '123' });
     });
 
-    flare.fire('USER_LOGGED_IN', { userId: '123' });
+    flare.fire('TEST_EVENT', { testId: '123' });
 });

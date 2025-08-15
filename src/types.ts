@@ -1,4 +1,6 @@
-export type Handler<Payload> = (payload: Payload) => void;
+export type MaybePromise<T> = T | Promise<T>;
+
+export type Handler<Payload> = (payload: Payload) => MaybePromise<void>;
 
 export interface IFlareFireOptions {}
 

@@ -1,4 +1,9 @@
-import { Handler, IFlareCatchOptions, IFlareFireOptions } from './types';
+import {
+    MaybePromise,
+    Handler,
+    IFlareCatchOptions,
+    IFlareFireOptions,
+} from './types';
 
 export class Flare<Events extends Record<string, any>> {
     private handlers: {
@@ -10,7 +15,16 @@ export class Flare<Events extends Record<string, any>> {
         payload: Events[K],
         options?: IFlareFireOptions,
     ): void {
-        this.handlers[event]?.forEach((handler) => handler(payload));
+        const handlers = this.handlers[event];
+        if (!handlers) return;
+
+        for (const handler of handlers) {
+            try {
+                Promise.resolve(handler(payload));
+            } catch (error) {
+                // TODO: handle exceptions
+            }
+        }
     }
 
     catch<K extends keyof Events>(
@@ -18,22 +32,26 @@ export class Flare<Events extends Record<string, any>> {
         handler: Handler<Events[K]>,
         options?: boolean | IFlareCatchOptions,
     ): () => void {
+        if (!this.handlers[event]) {
+            this.handlers[event] = new Set();
+        }
+
         let opt = {} as IFlareCatchOptions;
         if (options) {
-            if (options === true) {
-                opt.once = true;
+            if (typeof options === 'boolean') {
+                opt.once = options;
             } else {
                 opt = options;
             }
         }
 
-        if (!this.handlers[event]) {
-            this.handlers[event] = new Set();
-        }
-
         if (opt.once) {
             const wrappedHandler = (payload: Events[K]) => {
-                handler(payload);
+                try {
+                    Promise.resolve(handler(payload));
+                } catch (error) {
+                    // TODO: handle exceptions
+                }
                 this.release(event, wrappedHandler);
             };
             this.handlers[event]!.add(wrappedHandler);
@@ -52,6 +70,12 @@ export class Flare<Events extends Record<string, any>> {
     }
 
     releaseAll(): void {
+        for (const event in this.handlers) {
+            if (!Object.prototype.hasOwnProperty.call(this.handlers, event))
+                continue;
+            const handlers = this.handlers[event];
+            handlers?.clear();
+        }
         this.handlers = {};
     }
 }

@@ -1,35 +1,54 @@
 import {
-    MaybePromise,
     Handler,
-    IFlareCatchOptions,
+    Middleware,
     IFlareFireOptions,
+    IFlareCatchOptions,
 } from './types';
 
-export class Flare<Events extends Record<string, any>> {
+export class Flare<E extends Record<string, any>> {
     private handlers: {
-        [K in keyof Events]?: Set<Handler<Events[K]>>;
+        [K in keyof E]?: Set<Handler<E[K]>>;
     } = {};
 
-    fire<K extends keyof Events>(
+    private middlewares: Middleware<E>[] = [];
+
+    use(middleware: Middleware<E>): void {
+        this.middlewares.push(middleware);
+    }
+
+    fire<K extends keyof E>(
         event: K,
-        payload: Events[K],
+        payload: E[K],
         options?: IFlareFireOptions,
     ): void {
+        for (const middleware of this.middlewares) {
+            try {
+                const shouldContinue = middleware.before?.(event, payload);
+                if (shouldContinue === false) return;
+            } catch (error) {
+                // TODO: handle middleware exception
+            }
+        }
+
         const handlers = this.handlers[event];
         if (!handlers) return;
 
         for (const handler of handlers) {
+            this.call(handler, payload);
+        }
+
+        for (const middleware of this.middlewares) {
             try {
-                Promise.resolve(handler(payload));
+                middleware.after?.(event, payload);
             } catch (error) {
-                // TODO: handle exceptions
+                // TODO: handle middleware exception
             }
         }
     }
 
-    catch<K extends keyof Events>(
+    catch<K extends keyof E>(
         event: K,
-        handler: Handler<Events[K]>,
+        handler: Handler<E[K]>,
         options?: boolean | IFlareCatchOptions,
     ): () => void {
         if (!this.handlers[event]) {
@@ -46,12 +65,8 @@ export class Flare<Events extends Record<string, any>> {
         }
 
         if (opt.once) {
-            const wrappedHandler = (payload: Events[K]) => {
-                try {
-                    Promise.resolve(handler(payload));
-                } catch (error) {
-                    // TODO: handle exceptions
-                }
+            const wrappedHandler = (payload: E[K]) => {
+                this.call(handler, payload);
                 this.release(event, wrappedHandler);
             };
             this.handlers[event]!.add(wrappedHandler);
@@ -62,9 +77,9 @@ export class Flare<Events extends Record<string, any>> {
         return () => this.release(event, handler);
     }
 
-    release<K extends keyof Events>(
+    release<K extends keyof E>(
         event: K,
-        handler: Handler<Events[K]>,
+        handler: Handler<E[K]>,
     ): void {
         this.handlers[event]?.delete(handler);
     }
@@ -77,5 +92,18 @@ export class Flare<Events extends Record<string, any>> {
             handlers?.clear();
         }
         this.handlers = {};
+    }
+
+    private call<K extends keyof E>(
+        handler: Handler<E[K]>,
+        payload: E[K],
+    ) {
+        try {
+            Promise.resolve(handler(payload)).catch((e) => {
+                // TODO: handle async exception
+            });
+        } catch (error) {
+            // TODO: handle sync exception
+        }
     }
 }

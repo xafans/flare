@@ -1,9 +1,14 @@
 export type MaybePromise<T> = T | Promise<T>;
 
-export type Handler<Payload> = (payload: Payload) => MaybePromise<void>;
+export type Handler<P> = (payload: P) => MaybePromise<void>;
 
-export interface IFlareFireOptions {}
+export type IFlareFireOptions = {};
 
-export interface IFlareCatchOptions {
+export type IFlareCatchOptions = {
     once?: boolean;
-}
+};
+
+export type Middleware<E> = {
+    before?<K extends keyof E>(event: K, payload: E[K]): boolean | void;
+    after?<K extends keyof E>(event: K, payload: E[K]): void;
+};

@@ -17,12 +17,15 @@ type TestEvents = {
     TEST_EVENT: { testId: string };
 };
 
+const TEST_PAYLOAD = { testId: '123' };
+const TEST_EVENT_NAME: keyof TestEvents = 'TEST_EVENT';
+
 test('event type', () => {
     const flare = new Flare<TestEvents>();
 
-    flare.catch('TEST_EVENT', (payload) => {
-        expect(payload).toEqual({ testId: '123' });
+    flare.catch(TEST_EVENT_NAME, (payload) => {
+        expect(payload).toEqual(TEST_PAYLOAD);
     });
 
-    flare.fire('TEST_EVENT', { testId: '123' });
+    flare.fire(TEST_EVENT_NAME, TEST_PAYLOAD);
 });

@@ -1,70 +1,81 @@
 import {
-    Handler,
-    Middleware,
-    IFlareFireOptions,
-    IFlareCatchOptions,
+    FlareCatchOptions,
+    FlareFireOptions,
+    FlareFireStrategy,
+    FlareHandler,
+    FlareInterceptor,
+    FlareMiddleware,
 } from './types';
 
 export class Flare<E extends Record<string, any>> {
     private handlers: {
-        [K in keyof E]?: Set<Handler<E[K]>>;
+        [K in keyof E]?: Set<FlareHandler<E[K]>>;
     } = {};
 
-    private middlewares: Middleware<E>[] = [];
+    private interceptors: FlareInterceptor<E>[] = [];
+    private middlewares: FlareMiddleware<E>[] = [];
 
-    use(middleware: Middleware<E>): void {
+    in(interceptor: FlareInterceptor<E>): void {
+        this.interceptors.push(interceptor);
+    }
+
+    use(middleware: FlareMiddleware<E>): void {
         this.middlewares.push(middleware);
     }
 
-    fire<K extends keyof E>(
+    async fire<K extends keyof E>(
         event: K,
         payload: E[K],
-        options?: IFlareFireOptions,
-    ): void {
-        for (const middleware of this.middlewares) {
-            try {
-                const shouldContinue = middleware.before?.(event, payload);
-                if (shouldContinue === false) return;
-            } catch (error) {
-                // TODO: handle middleware exception
-            }
+        options: FlareFireOptions = {},
+    ): Promise<string | void> {
+        const beforeResult = this.handleBeforeInterceptors(event, payload);
+        if (beforeResult) return beforeResult;
+
+        const { stopped, newPayload } = await this.handleMiddlewares(event, payload);
+        if (stopped) {
+            return Promise.resolve(`Event "${String(event)}" was stopped by middleware.`);
         }
 
         const handlers = this.handlers[event];
-        if (!handlers) return;
+        if (!handlers) return Promise.resolve(`No handlers found for event "${String(event)}".`);
 
-        for (const handler of handlers) {
-            this.call(handler, payload);
-        }
+        const { strategy = FlareFireStrategy.Parallel, timeout, haltOnError = false } = options;
 
-        for (const middleware of this.middlewares) {
-            try {
-                middleware.after?.(event, payload);
-            } catch (error) {
-                // TODO: handle middleware exception
+        if (strategy === FlareFireStrategy.Parallel) {
+            await Promise.allSettled(
+                Array.from(handlers).map(async (handler) => {
+                    try {
+                        await this.execute(handler, newPayload, timeout);
+                    } catch (err) {
+                        // console.error(`Error in ${String(event)} handler:`, err);
+                        if (haltOnError) throw err;
+                    }
+                })
+            );
+        } else {
+            for (const handler of handlers) {
+                try {
+                    await this.execute(handler, newPayload, timeout);
+                } catch (err) {
+                    // console.error(`Error in ${String(event)} handler:`, err);
+                    if (haltOnError) break;
+                }
             }
         }
+
+        this.handleAfterInterceptors(event, newPayload);
     }
 
     catch<K extends keyof E>(
         event: K,
-        handler: Handler<E[K]>,
-        options?: boolean | IFlareCatchOptions,
+        handler: FlareHandler<E[K]>,
+        options: FlareCatchOptions = {},
     ): () => void {
         if (!this.handlers[event]) {
             this.handlers[event] = new Set();
         }
 
-        let opt = {} as IFlareCatchOptions;
-        if (options) {
-            if (typeof options === 'boolean') {
-                opt.once = options;
-            } else {
-                opt = options;
-            }
-        }
-
-        if (opt.once) {
+        if (options.once) {
             const wrappedHandler = (payload: E[K]) => {
                 this.call(handler, payload);
                 this.release(event, wrappedHandler);
@@ -79,31 +90,91 @@ export class Flare<E extends Record<string, any>> {
 
     release<K extends keyof E>(
         event: K,
-        handler: Handler<E[K]>,
+        handler: FlareHandler<E[K]>,
     ): void {
         this.handlers[event]?.delete(handler);
     }
 
     releaseAll(): void {
         for (const event in this.handlers) {
-            if (!Object.prototype.hasOwnProperty.call(this.handlers, event))
-                continue;
+            if (!Object.prototype.hasOwnProperty.call(this.handlers, event)) continue;
             const handlers = this.handlers[event];
             handlers?.clear();
         }
         this.handlers = {};
     }
 
+    // ==================== private methods ====================
+
+    private handleBeforeInterceptors<K extends keyof E>(event: K, payload: E[K]) {
+        for (const interceptor of this.interceptors) {
+            try {
+                const shouldContinue = interceptor.before?.(event, payload);
+                if (shouldContinue === false) {
+                    return Promise.resolve(`Event "${String(event)}" was cancelled by interceptor ${interceptor.id ? `(${interceptor.id})` : ""}.`);
+                }
+            } catch (error) {
+                // TODO: handle interceptor exception
+            }
+        }
+    }
+
+    private handleAfterInterceptors<K extends keyof E>(event: K, payload: E[K]) {
+        for (const interceptor of this.interceptors) {
+            try {
+                interceptor.after?.(event, payload);
+            } catch (error) {
+                // TODO: handle interceptor exception
+            }
+        }
+    }
+
+    private async handleMiddlewares<K extends keyof E>(event: K, payload: E[K]): Promise<{ stopped: boolean, newPayload: E[K] }> {
+        const middlewares = this.middlewares;
+
+        let stopped = false;
+        let newPayload = payload;
+
+        if (middlewares.length === 0) return { stopped, newPayload };
+
+        const stop = () => { stopped = true; };
+        const set = (p: E[K]) => { newPayload = p; };
+
+        await executeMiddleware(0);
+
+        return { stopped, newPayload };
+
+
+        async function executeMiddleware(index: number): Promise<void> {
+            if (index < middlewares.length) {
+                const middleware = middlewares[index];
+                const context = { event, payload: newPayload, stop, set };
+                await middleware(context, () => executeMiddleware(index + 1));
+            }
+        };
+    }
+
+    private async execute<K extends keyof E>(
+        handler: FlareHandler<E[K]>,
+        payload: E[K],
+        timeout?: number): Promise<void> {
+        if (!timeout) return this.call(handler, payload);
+
+        const timeoutPromise = new Promise<void>((_, reject) => setTimeout(() => reject(new Error('FlareHandler timeout')), timeout));
+        return Promise.race([this.call(handler, payload), timeoutPromise]);
+    };
+
     private call<K extends keyof E>(
-        handler: Handler<E[K]>,
+        handler: FlareHandler<E[K]>,
         payload: E[K],
     ) {
         try {
-            Promise.resolve(handler(payload)).catch((e) => {
+            return Promise.resolve(handler(payload)).catch((e) => {
                 // TODO: handle async exception
             });
         } catch (error) {
             // TODO: handle sync exception
+            throw error;
         }
     }
 }

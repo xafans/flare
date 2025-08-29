@@ -47,7 +47,7 @@ export class Flare<E extends Record<string, any>> {
                     try {
                         await this.execute(handler, newPayload, timeout);
                     } catch (err) {
-                        // console.error(`Error in ${String(event)} handler:`, err);
+                        // TODO: handle or log exception
                         if (haltOnError) throw err;
                     }
                 })
@@ -57,7 +57,7 @@ export class Flare<E extends Record<string, any>> {
                 try {
                     await this.execute(handler, newPayload, timeout);
                 } catch (err) {
-                    // console.error(`Error in ${String(event)} handler:`, err);
+                    // TODO: handle or log exception
                     if (haltOnError) break;
                 }
             }
@@ -104,7 +104,7 @@ export class Flare<E extends Record<string, any>> {
         this.handlers = {};
     }
 
-    // ==================== private methods ====================
+    // ==================== internals ====================
 
     private handleBeforeInterceptors<K extends keyof E>(event: K, payload: E[K]) {
         for (const interceptor of this.interceptors) {

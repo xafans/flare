@@ -16,26 +16,26 @@ describe('Flare class', () => {
         flare.catch(EVENT_NAME, handler);
 
         // Act
-        flare.fire(EVENT_NAME, PAYLOAD);
-
-        // Assert
-        expect(handler).toHaveBeenCalledWith(PAYLOAD);
+        flare.fire(EVENT_NAME, PAYLOAD).then(() => {
+            // Assert
+            expect(handler).toHaveBeenCalledWith(PAYLOAD);
+        });
     });
 
-    test('fires with once: true option', () => {
+    test('fires with once: true option', async () => {
         // Arrange
         const handler = jest.fn();
         flare.catch(EVENT_NAME, handler, { once: true });
 
         // Act
-        flare.fire(EVENT_NAME, PAYLOAD);
-        flare.fire(EVENT_NAME, PAYLOAD);
+        await flare.fire(EVENT_NAME, PAYLOAD);
+        await flare.fire(EVENT_NAME, PAYLOAD);
 
         // Assert
         expect(handler).toHaveBeenCalledTimes(1);
     });
 
-    test('fires and catch multiple handlers event', () => {
+    test('fires and catch multiple handlers event', async () => {
         // Arrange
         const handler1 = jest.fn();
         const handler2 = jest.fn();
@@ -43,48 +43,48 @@ describe('Flare class', () => {
         flare.catch(EVENT_NAME, handler2);
 
         // Act
-        flare.fire(EVENT_NAME, PAYLOAD);
+        await flare.fire(EVENT_NAME, PAYLOAD);
 
         // Assert
         expect(handler1).toHaveBeenCalledWith(PAYLOAD);
         expect(handler2).toHaveBeenCalledWith(PAYLOAD);
     });
 
-    test('release', () => {
+    test('release', async () => {
         // Arrange
         const handler = jest.fn();
         flare.catch(EVENT_NAME, handler);
 
         // Act
         flare.release(EVENT_NAME, handler);
-        flare.fire(EVENT_NAME, PAYLOAD);
+        await flare.fire(EVENT_NAME, PAYLOAD);
 
         // Assert
         expect(handler).not.toHaveBeenCalled();
     });
 
-    test('callback of catch', () => {
+    test('callback of catch', async () => {
         // Arrange
         const handler = jest.fn();
         const release = flare.catch(EVENT_NAME, handler);
 
         // Act
-        flare.fire(EVENT_NAME, PAYLOAD);
+        await flare.fire(EVENT_NAME, PAYLOAD);
         release();
-        flare.fire(EVENT_NAME, PAYLOAD);
+        await flare.fire(EVENT_NAME, PAYLOAD);
 
         // Assert
         expect(handler).toHaveBeenCalledTimes(1);
     });
 
-    test('releaseAll', () => {
+    test('releaseAll', async () => {
         // Arrange
         const handler = jest.fn();
         flare.catch(EVENT_NAME, handler);
 
         // Act
         flare.releaseAll();
-        flare.fire(EVENT_NAME, PAYLOAD);
+        await flare.fire(EVENT_NAME, PAYLOAD);
 
         // Assert
         expect(handler).not.toHaveBeenCalled();
@@ -95,10 +95,10 @@ describe('Flare class', () => {
         // (no setup needed)
 
         // Act & Assert
-        expect(() => flare.fire(EVENT_NAME, PAYLOAD)).not.toThrow();
+        expect(async () => await flare.fire(EVENT_NAME, PAYLOAD)).not.toThrow();
     });
 
-    it('skips released handler but call others when event fires', () => {
+    it('skips released handler but call others when event fires', async () => {
         // Arrange
         const handler1 = jest.fn();
         const handler2 = jest.fn();
@@ -107,7 +107,7 @@ describe('Flare class', () => {
 
         // Act
         releaseHandler1();
-        flare.fire(EVENT_NAME, PAYLOAD);
+        await flare.fire(EVENT_NAME, PAYLOAD);
 
         // Assert
         expect(handler1).not.toHaveBeenCalled();

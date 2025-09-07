@@ -90,7 +90,7 @@ Perfect! That’s a good workflow to **automatically link PRs to issues**. You c
    * Include the issue number in the PR title:
 
      ```
-     fix: correct event handling (#12)
+     Correct event handling (#12)
      ```
    * In the PR description, add:
 

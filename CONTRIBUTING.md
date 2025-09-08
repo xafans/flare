@@ -1,7 +1,7 @@
 # Contributing to Flare
 
 First off, thank you for considering contributing! 🎉  
-We welcome contributions from everyone — bug reports, feature requests, documentation improvements, or code enhancements.
+We welcome contributions from everyone, whether it’s reporting bugs, suggesting new features, improving the docs, or jumping in with code changes.
 
 ---
 
@@ -36,7 +36,7 @@ You can contribute in many ways:
 1. **Fork the repo**  
 2. **Clone your fork locally:**
    ```bash
-   git clone https://github.com/xafans/flare.git
+   git clone https://github.com/your-username/flare.git
    cd flare
    ```
 
@@ -61,19 +61,12 @@ You can contribute in many ways:
 
 ## Branching & Commits
 
-* Create a **feature branch** from `main`:
+* Create a **feature branch** from `dev`:
 
   ```bash
-  git checkout -b chore/your-feature
+  git switch -c your-feature
   ```
 * Use **kebab-case** for branch names.
-* Use **conventional commits**:
-
-  * `feat:` for new features
-  * `fix:` for bug fixes
-  * `docs:` for documentation changes
-  * `chore:` for repo maintenance / tooling
-* Keep your commits small and descriptive.
 
 ---
 
@@ -84,7 +77,7 @@ Perfect! That’s a good workflow to **automatically link PRs to issues**. You c
 ### Pull Requests
 
 1. Push your branch to your fork.
-2. Open a **Pull Request** against `main`.
+2. Open a **Pull Request** against `dev`.
 3. **Link PR to an issue** (if applicable):
 
    * Include the issue number in the PR title:

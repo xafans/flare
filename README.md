@@ -33,16 +33,7 @@ pnpm add flare
 ## 🚀 Quick Start
 
 ```ts
-import Flare from "flare";
-
-// Define your event map (TypeScript)
-type Events = {
-  userLogin: { id: string; name: string };
-  message: string;
-};
-
-// Create an instance
-const flare = new Flare<Events>();
+import { flare } from "flare";
 
 // Register a handler
 flare.catch("userLogin", (user) => {

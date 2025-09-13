@@ -48,11 +48,12 @@ flare.fire("userLogin", { id: "123", name: "Alice" });
 
 ## ⚙️ API
 
-- [catch(event, handler, options?)](https://github.com/xafans/flare/wiki/API-Reference#catchevent-handler-options)
-- [fire(event, payload, options?)](https://github.com/xafans/flare/wiki/API-Reference#fireevent-payload-options)
-- [in(interceptor)](https://github.com/xafans/flare/wiki/API-Reference#ininterceptor)
-- [use(middleware)](https://github.com/xafans/flare/wiki/API-Reference#usemiddleware)
-- [release(event, handler) / releaseAll()](https://github.com/xafans/flare/wiki/API-Reference#releaseevent-handler)
+- [fire(event, payload, options?)](https://github.com/xafans/flare/wiki/API-Reference#fire)
+- [catch(event, handler, options?)](https://github.com/xafans/flare/wiki/API-Reference#catch)
+- [release(event, handler)](https://github.com/xafans/flare/wiki/API-Reference#release)
+- [releaseAll()](https://github.com/xafans/flare/wiki/API-Reference#releaseall)
+- [use(middleware)](https://github.com/xafans/flare/wiki/API-Reference#use)
+- [in(interceptor)](https://github.com/xafans/flare/wiki/API-Reference#in)
 
 ---
 

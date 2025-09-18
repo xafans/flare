@@ -121,4 +121,46 @@ describe('Flare class', () => {
         // Act & Assert
         expect(() => flare.release(EVENT_NAME, handler)).not.toThrow();
     });
+
+    it('skips handlers when fireIf returns false', async () => {
+        // Arrange
+        const handler = jest.fn();
+        flare.catch(EVENT_NAME, handler);
+
+        // Act
+        await flare.fire(EVENT_NAME, PAYLOAD, {
+            fireIf: () => false,
+        });
+
+        // Assert
+        expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('executes handlers when fireIf returns true', async () => {
+        // Arrange
+        const handler = jest.fn();
+        flare.catch(EVENT_NAME, handler);
+
+        // Act
+        await flare.fire(EVENT_NAME, PAYLOAD, {
+            fireIf: () => true,
+        });
+
+        // Assert
+        expect(handler).toHaveBeenCalledWith(PAYLOAD);
+    });
+
+    it('receives payload in fireIf predicate', async () => {
+        // Arrange
+        const handler = jest.fn();
+        flare.catch(EVENT_NAME, handler);
+        const fireIf = jest.fn(() => true);
+
+        // Act
+        await flare.fire(EVENT_NAME, PAYLOAD, { fireIf });
+
+        // Assert
+        expect(fireIf).toHaveBeenCalledWith(PAYLOAD);
+        expect(handler).toHaveBeenCalledWith(PAYLOAD);
+    });
 });

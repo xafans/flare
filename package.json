@@ -1,5 +1,5 @@
 {
-  "name": "flare",
+  "name": "@xafans/flare",
   "type": "module",
   "version": "0.1.0",
   "description": "Blazing fast event aggregator for JavaScript & TypeScript.",

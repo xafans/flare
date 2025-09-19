@@ -11,6 +11,9 @@ export class Flare<E extends Record<string, any>> {
     private handlers: {
         [K in keyof E]?: Set<FlareHandler<E[K]>>;
     } = {};
+    private handlerMap: {
+        [K in keyof E]?: WeakMap<FlareHandler<E[K]>, FlareHandler<E[K]>>;
+    } = {};
 
     private interceptors: FlareInterceptor<E>[] = [];
     private middlewares: FlareMiddleware<E>[] = [];
@@ -74,16 +77,19 @@ export class Flare<E extends Record<string, any>> {
         if (!this.handlers[event]) {
             this.handlers[event] = new Set();
         }
-
-        if (options.once) {
-            const wrappedHandler = (payload: E[K]) => {
-                this.call(handler, payload);
-                this.release(event, wrappedHandler);
-            };
-            this.handlers[event]!.add(wrappedHandler);
-        } else {
-            this.handlers[event]!.add(handler);
+        if (!this.handlerMap[event]) {
+            this.handlerMap[event] = new WeakMap();
         }
+
+        const wrappedHandler = (payload: E[K]) => {
+            if (!options.when || options.when(payload)) {
+                this.call(handler, payload);
+                if (options.once) this.release(event, handler);
+            }
+        };
+
+        this.handlers[event]!.add(wrappedHandler);
+        this.handlerMap[event]!.set(handler, wrappedHandler);
 
         return () => this.release(event, handler);
     }
@@ -92,7 +98,14 @@ export class Flare<E extends Record<string, any>> {
         event: K,
         handler: FlareHandler<E[K]>,
     ): void {
-        this.handlers[event]?.delete(handler);
+        const map = this.handlerMap[event];
+        if (!map) return;
+
+        const wrappedHandler = map.get(handler);
+        if (!wrappedHandler) return;
+
+        this.handlers[event]?.delete(wrappedHandler);
+        map.delete(handler);
     }
 
     releaseAll(): void {

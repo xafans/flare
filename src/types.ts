@@ -7,15 +7,15 @@ export enum FlareFireStrategy {
     Serial = 'serial'
 };
 
-export type FlareFireOptions<E, K extends keyof E> = {
+export type FlareFireOptions = {
     timeout?: number;
     haltOnError?: boolean;
     strategy?: FlareFireStrategy;
-    fireIf?: (payload: E[K]) => boolean;
 };
 
-export type FlareCatchOptions = {
+export type FlareCatchOptions<E, K extends keyof E> = {
     once?: boolean;
+    when?: (payload: E[K]) => boolean;
 };
 
 export type FlareInterceptor<E> = {

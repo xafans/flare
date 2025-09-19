@@ -122,45 +122,60 @@ describe('Flare class', () => {
         expect(() => flare.release(EVENT_NAME, handler)).not.toThrow();
     });
 
-    it('skips handlers when fireIf returns false', async () => {
+    test('release works for once: true handlers before firing', async () => {
         // Arrange
         const handler = jest.fn();
-        flare.catch(EVENT_NAME, handler);
+        flare.catch(EVENT_NAME, handler, { once: true });
 
         // Act
-        await flare.fire(EVENT_NAME, PAYLOAD, {
-            fireIf: () => false,
-        });
+        flare.release(EVENT_NAME, handler);  // release before fire
+        await flare.fire(EVENT_NAME, PAYLOAD);
 
         // Assert
         expect(handler).not.toHaveBeenCalled();
     });
 
-    it('executes handlers when fireIf returns true', async () => {
+
+    test('handler runs only when when() returns true', async () => {
         // Arrange
         const handler = jest.fn();
-        flare.catch(EVENT_NAME, handler);
+        flare.catch(EVENT_NAME, handler, { when: (payload) => payload === 'run' });
 
         // Act
-        await flare.fire(EVENT_NAME, PAYLOAD, {
-            fireIf: () => true,
-        });
+        await flare.fire(EVENT_NAME, 'skip');
+        await flare.fire(EVENT_NAME, 'run');
 
         // Assert
-        expect(handler).toHaveBeenCalledWith(PAYLOAD);
+        expect(handler).toHaveBeenCalledTimes(1);
+        expect(handler).toHaveBeenCalledWith('run');
     });
 
-    it('receives payload in fireIf predicate', async () => {
+    test('handler can dynamically run and skip across multiple fires', async () => {
         // Arrange
         const handler = jest.fn();
-        flare.catch(EVENT_NAME, handler);
-        const fireIf = jest.fn(() => true);
+        flare.catch(EVENT_NAME, handler, { when: (payload) => payload.active });
 
         // Act
-        await flare.fire(EVENT_NAME, PAYLOAD, { fireIf });
+        await flare.fire(EVENT_NAME, { active: false });
+        await flare.fire(EVENT_NAME, { active: true });
+        await flare.fire(EVENT_NAME, { active: false });
+        await flare.fire(EVENT_NAME, { active: true });
 
         // Assert
-        expect(fireIf).toHaveBeenCalledWith(PAYLOAD);
-        expect(handler).toHaveBeenCalledWith(PAYLOAD);
+        expect(handler).toHaveBeenCalledTimes(2);
+    });
+
+    test('once handlers with when only removed if executed', async () => {
+        // Arrange
+        const handler = jest.fn();
+        flare.catch(EVENT_NAME, handler, { once: true, when: (payload) => payload.active });
+
+        // Act
+        await flare.fire(EVENT_NAME, { active: false });
+        await flare.fire(EVENT_NAME, { active: true });
+        await flare.fire(EVENT_NAME, { active: true });
+
+        // Assert
+        expect(handler).toHaveBeenCalledTimes(1);
     });
 });

@@ -26,7 +26,7 @@ export class Flare<E extends Record<string, any>> {
     async fire<K extends keyof E>(
         event: K,
         payload: E[K],
-        options: FlareFireOptions<E, K> = {},
+        options: FlareFireOptions = {},
     ): Promise<string | void> {
         const beforeResult = this.handleBeforeInterceptors(event, payload);
         if (beforeResult) return beforeResult;
@@ -39,11 +39,7 @@ export class Flare<E extends Record<string, any>> {
         const handlers = this.handlers[event];
         if (!handlers) return Promise.resolve(`No handlers found for event "${String(event)}".`);
 
-        const { strategy = FlareFireStrategy.Parallel, timeout, haltOnError = false, fireIf } = options;
-
-        if (fireIf && !fireIf(newPayload)) {
-            return Promise.resolve(`Event "${String(event)}" skipped by fireIf condition.`);
-        }
+        const { strategy = FlareFireStrategy.Parallel, timeout, haltOnError = false } = options;
 
         if (strategy === FlareFireStrategy.Parallel) {
             await Promise.allSettled(
@@ -73,7 +69,7 @@ export class Flare<E extends Record<string, any>> {
     catch<K extends keyof E>(
         event: K,
         handler: FlareHandler<E[K]>,
-        options: FlareCatchOptions = {},
+        options: FlareCatchOptions<E, K> = {}
     ): () => void {
         if (!this.handlers[event]) {
             this.handlers[event] = new Set();

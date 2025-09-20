@@ -168,10 +168,12 @@ export class Flare<E extends Record<string, any>> {
         payload: E[K],
         timeout?: number
     ): Promise<void> {
-        await this.execute(handlerWithOptions.fn, payload, timeout);
-
-        if (handlerWithOptions.once) {
-            this.release(event, handlerWithOptions.fn);
+        try {
+            await this.execute(handlerWithOptions.fn, payload, timeout);
+        } finally {
+            if (handlerWithOptions.once) {
+                this.handlers[event]?.delete(handlerWithOptions);
+            }
         }
     }
 

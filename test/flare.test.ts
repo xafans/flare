@@ -141,7 +141,7 @@ describe('Flare class', () => {
         flare.catch(EVENT_NAME, handler, { once: true });
 
         // Act
-        flare.release(EVENT_NAME, handler);  // release before fire
+        flare.release(EVENT_NAME, handler);
         await flare.fire(EVENT_NAME, PAYLOAD);
 
         // Assert

@@ -77,6 +77,19 @@ describe('Flare class', () => {
         expect(handler).toHaveBeenCalledTimes(1);
     });
 
+    test('callback of catch with once: true', async () => {
+        // Arrange
+        const handler = jest.fn();
+        const release = flare.catch(EVENT_NAME, handler, { once: true });
+
+        // Act
+        release();
+        await flare.fire(EVENT_NAME, PAYLOAD);
+
+        // Assert
+        expect(handler).toHaveBeenCalledTimes(0);
+    });
+
     test('releaseAll', async () => {
         // Arrange
         const handler = jest.fn();
@@ -120,5 +133,18 @@ describe('Flare class', () => {
 
         // Act & Assert
         expect(() => flare.release(EVENT_NAME, handler)).not.toThrow();
+    });
+
+    test('release works for once: true handlers before firing', async () => {
+        // Arrange
+        const handler = jest.fn();
+        flare.catch(EVENT_NAME, handler, { once: true });
+
+        // Act
+        flare.release(EVENT_NAME, handler);  // release before fire
+        await flare.fire(EVENT_NAME, PAYLOAD);
+
+        // Assert
+        expect(handler).not.toHaveBeenCalled();
     });
 });

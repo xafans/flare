@@ -7,9 +7,14 @@ import {
     FlareMiddleware,
 } from './types';
 
+type FlareHandlerWithOptions<E, K extends keyof E> = {
+    fn: FlareHandler<E[K]>;
+    once?: boolean;
+};
+
 export class Flare<E extends Record<string, any>> {
     private handlers: {
-        [K in keyof E]?: Set<FlareHandler<E[K]>>;
+        [K in keyof E]?: Set<FlareHandlerWithOptions<E, K>>;
     } = {};
 
     private interceptors: FlareInterceptor<E>[] = [];
@@ -45,7 +50,7 @@ export class Flare<E extends Record<string, any>> {
             await Promise.allSettled(
                 Array.from(handlers).map(async (handler) => {
                     try {
-                        await this.execute(handler, newPayload, timeout);
+                        await this.executeWithOptions(event, handler, newPayload, timeout);
                     } catch (err) {
                         // TODO: handle or log exception
                         if (haltOnError) throw err;
@@ -55,7 +60,7 @@ export class Flare<E extends Record<string, any>> {
         } else {
             for (const handler of handlers) {
                 try {
-                    await this.execute(handler, newPayload, timeout);
+                    await this.executeWithOptions(event, handler, newPayload, timeout);
                 } catch (err) {
                     // TODO: handle or log exception
                     if (haltOnError) break;
@@ -75,15 +80,10 @@ export class Flare<E extends Record<string, any>> {
             this.handlers[event] = new Set();
         }
 
-        if (options.once) {
-            const wrappedHandler = (payload: E[K]) => {
-                this.call(handler, payload);
-                this.release(event, wrappedHandler);
-            };
-            this.handlers[event]!.add(wrappedHandler);
-        } else {
-            this.handlers[event]!.add(handler);
-        }
+        this.handlers[event].add({
+            fn: handler,
+            once: options.once
+        })
 
         return () => this.release(event, handler);
     }
@@ -92,7 +92,15 @@ export class Flare<E extends Record<string, any>> {
         event: K,
         handler: FlareHandler<E[K]>,
     ): void {
-        this.handlers[event]?.delete(handler);
+        const handlers = this.handlers[event];
+        if (!handlers) return;
+
+        for (const h of handlers) {
+            if (h.fn === handler) {
+                handlers.delete(h);
+                break;
+            }
+        }
     }
 
     releaseAll(): void {
@@ -152,6 +160,19 @@ export class Flare<E extends Record<string, any>> {
                 await middleware(context, () => executeMiddleware(index + 1));
             }
         };
+    }
+
+    private async executeWithOptions<K extends keyof E>(
+        event: K,
+        handlerWithOptions: FlareHandlerWithOptions<E, K>,
+        payload: E[K],
+        timeout?: number
+    ): Promise<void> {
+        await this.execute(handlerWithOptions.fn, payload, timeout);
+
+        if (handlerWithOptions.once) {
+            this.release(event, handlerWithOptions.fn);
+        }
     }
 
     private async execute<K extends keyof E>(

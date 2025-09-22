@@ -54,7 +54,7 @@ export class Flare<E extends Record<string, any>> {
         }
 
         this.handlerOptionsStore[event].add({
-            handler: handler,
+            handler,
             options
         })
 
@@ -65,12 +65,12 @@ export class Flare<E extends Record<string, any>> {
         event: K,
         handler: FlareHandler<E[K]>,
     ): void {
-        const handlers = this.handlerOptionsStore[event];
-        if (!handlers) return;
+        const handlerOptionsSet = this.handlerOptionsStore[event];
+        if (!handlerOptionsSet) return;
 
-        for (const h of handlers) {
-            if (h.handler === handler) {
-                handlers.delete(h);
+        for (const handlerOptions of handlerOptionsSet) {
+            if (handlerOptions.handler === handler) {
+                handlerOptionsSet.delete(handlerOptions);
                 break;
             }
         }
@@ -79,8 +79,7 @@ export class Flare<E extends Record<string, any>> {
     releaseAll(): void {
         for (const event in this.handlerOptionsStore) {
             if (!Object.prototype.hasOwnProperty.call(this.handlerOptionsStore, event)) continue;
-            const handlers = this.handlerOptionsStore[event];
-            handlers?.clear();
+            this.handlerOptionsStore[event]?.clear();
         }
         this.handlerOptionsStore = {};
     }

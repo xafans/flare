@@ -8,11 +8,8 @@ import {
 } from './types';
 
 export class Flare<E extends Record<string, any>> {
-    private handlers: {
-        [K in keyof E]?: Set<FlareHandler<E[K]>>;
-    } = {};
-    private handlerMap: {
-        [K in keyof E]?: WeakMap<FlareHandler<E[K]>, FlareHandler<E[K]>>;
+    private handlerOptionsStore: {
+        [K in keyof E]?: Set<HandlerOptionsPair<E, K>>;
     } = {};
 
     private interceptors: FlareInterceptor<E>[] = [];
@@ -39,32 +36,10 @@ export class Flare<E extends Record<string, any>> {
             return Promise.resolve(`Event "${String(event)}" was stopped by middleware.`);
         }
 
-        const handlers = this.handlers[event];
-        if (!handlers) return Promise.resolve(`No handlers found for event "${String(event)}".`);
+        const handlerOptionsSet = this.handlerOptionsStore[event];
+        if (!handlerOptionsSet) return Promise.resolve(`No handlers found for event "${String(event)}".`);
 
-        const { strategy = FlareFireStrategy.Parallel, timeout, haltOnError = false } = options;
-
-        if (strategy === FlareFireStrategy.Parallel) {
-            await Promise.allSettled(
-                Array.from(handlers).map(async (handler) => {
-                    try {
-                        await this.execute(handler, newPayload, timeout);
-                    } catch (err) {
-                        // TODO: handle or log exception
-                        if (haltOnError) throw err;
-                    }
-                })
-            );
-        } else {
-            for (const handler of handlers) {
-                try {
-                    await this.execute(handler, newPayload, timeout);
-                } catch (err) {
-                    // TODO: handle or log exception
-                    if (haltOnError) break;
-                }
-            }
-        }
+        await this.handleExecute(event, newPayload, options, handlerOptionsSet);
 
         this.handleAfterInterceptors(event, newPayload);
     }
@@ -74,22 +49,14 @@ export class Flare<E extends Record<string, any>> {
         handler: FlareHandler<E[K]>,
         options: FlareCatchOptions<E, K> = {}
     ): () => void {
-        if (!this.handlers[event]) {
-            this.handlers[event] = new Set();
-        }
-        if (!this.handlerMap[event]) {
-            this.handlerMap[event] = new WeakMap();
+        if (!this.handlerOptionsStore[event]) {
+            this.handlerOptionsStore[event] = new Set();
         }
 
-        const wrappedHandler = (payload: E[K]) => {
-            if (!options.when || options.when(payload)) {
-                this.call(handler, payload);
-                if (options.once) this.release(event, handler);
-            }
-        };
-
-        this.handlers[event]!.add(wrappedHandler);
-        this.handlerMap[event]!.set(handler, wrappedHandler);
+        this.handlerOptionsStore[event].add({
+            handler,
+            options
+        })
 
         return () => this.release(event, handler);
     }
@@ -98,26 +65,26 @@ export class Flare<E extends Record<string, any>> {
         event: K,
         handler: FlareHandler<E[K]>,
     ): void {
-        const map = this.handlerMap[event];
-        if (!map) return;
+        const handlerOptionsSet = this.handlerOptionsStore[event];
+        if (!handlerOptionsSet) return;
 
-        const wrappedHandler = map.get(handler);
-        if (!wrappedHandler) return;
-
-        this.handlers[event]?.delete(wrappedHandler);
-        map.delete(handler);
+        for (const handlerOptions of handlerOptionsSet) {
+            if (handlerOptions.handler === handler) {
+                handlerOptionsSet.delete(handlerOptions);
+                break;
+            }
+        }
     }
 
     releaseAll(): void {
-        for (const event in this.handlers) {
-            if (!Object.prototype.hasOwnProperty.call(this.handlers, event)) continue;
-            const handlers = this.handlers[event];
-            handlers?.clear();
+        for (const event in this.handlerOptionsStore) {
+            if (!Object.prototype.hasOwnProperty.call(this.handlerOptionsStore, event)) continue;
+            this.handlerOptionsStore[event]?.clear();
         }
-        this.handlers = {};
+        this.handlerOptionsStore = {};
     }
 
-    // ==================== internals ====================
+    // ==================== handle methods ====================
 
     private handleBeforeInterceptors<K extends keyof E>(event: K, payload: E[K]) {
         for (const interceptor of this.interceptors) {
@@ -167,14 +134,59 @@ export class Flare<E extends Record<string, any>> {
         };
     }
 
-    private async execute<K extends keyof E>(
-        handler: FlareHandler<E[K]>,
-        payload: E[K],
-        timeout?: number): Promise<void> {
-        if (!timeout) return this.call(handler, payload);
+    private async handleExecute<K extends keyof E>(
+        event: K,
+        newPayload: E[K],
+        fireOptions: FlareFireOptions,
+        handlerOptionsSet: Set<HandlerOptionsPair<E, K>>
+    ) {
+        const { strategy = FlareFireStrategy.Parallel, timeout, haltOnError = false } = fireOptions;
 
-        const timeoutPromise = new Promise<void>((_, reject) => setTimeout(() => reject(new Error('FlareHandler timeout')), timeout));
-        return Promise.race([this.call(handler, payload), timeoutPromise]);
+        if (strategy === FlareFireStrategy.Parallel) {
+            await Promise.allSettled(
+                Array.from(handlerOptionsSet).map(async (handlerOptions) => {
+                    try {
+                        await this.execute(event, newPayload, timeout, handlerOptions);
+                    } catch (err) {
+                        // TODO: handle or log exception
+                        if (haltOnError) throw err;
+                    }
+                })
+            );
+        } else {
+            for (const handlerOptions of handlerOptionsSet) {
+                try {
+                    await this.execute(event, newPayload, timeout, handlerOptions);
+                } catch (err) {
+                    // TODO: handle or log exception
+                    if (haltOnError) break;
+                }
+            }
+        }
+    }
+
+    // ==================== internal methods ====================
+
+    private async execute<K extends keyof E>(
+        event: K,
+        payload: E[K],
+        timeout: number | undefined,
+        handlerOptions: HandlerOptionsPair<E, K>
+    ): Promise<void> {
+        const shouldRun = !handlerOptions.options.when || handlerOptions.options.when(payload);
+        if (!shouldRun) return;
+
+        try {
+            if (!timeout) return this.call(handlerOptions.handler, payload);
+
+            const timeoutPromise = new Promise<void>((_, reject) => setTimeout(() => reject(new Error('FlareHandler timeout')), timeout));
+            return Promise.race([this.call(handlerOptions.handler, payload), timeoutPromise]);
+
+        } finally {
+            if (handlerOptions.options.once) {
+                this.handlerOptionsStore[event]?.delete(handlerOptions);
+            }
+        }
     };
 
     private call<K extends keyof E>(
@@ -191,3 +203,8 @@ export class Flare<E extends Record<string, any>> {
         }
     }
 }
+
+interface HandlerOptionsPair<E, K extends keyof E> {
+    handler: FlareHandler<E[K]>;
+    options: FlareCatchOptions<E, K>;
+};

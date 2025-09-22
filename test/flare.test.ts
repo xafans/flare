@@ -77,6 +77,19 @@ describe('Flare class', () => {
         expect(handler).toHaveBeenCalledTimes(1);
     });
 
+    test('callback of catch with once: true', async () => {
+        // Arrange
+        const handler = jest.fn();
+        const release = flare.catch(EVENT_NAME, handler, { once: true });
+
+        // Act
+        release();
+        await flare.fire(EVENT_NAME, PAYLOAD);
+
+        // Assert
+        expect(handler).toHaveBeenCalledTimes(0);
+    });
+
     test('releaseAll', async () => {
         // Arrange
         const handler = jest.fn();
@@ -128,13 +141,12 @@ describe('Flare class', () => {
         flare.catch(EVENT_NAME, handler, { once: true });
 
         // Act
-        flare.release(EVENT_NAME, handler);  // release before fire
+        flare.release(EVENT_NAME, handler);
         await flare.fire(EVENT_NAME, PAYLOAD);
 
         // Assert
         expect(handler).not.toHaveBeenCalled();
     });
-
 
     test('handler runs only when when() returns true', async () => {
         // Arrange

@@ -181,7 +181,6 @@ export class Flare<E extends Record<string, any>> {
 
             const timeoutPromise = new Promise<void>((_, reject) => setTimeout(() => reject(new Error('FlareHandler timeout')), timeout));
             return Promise.race([this.call(handlerOptions.handler, payload), timeoutPromise]);
-
         } finally {
             if (handlerOptions.options.once) {
                 this.handlerOptionsStore[event]?.delete(handlerOptions);

@@ -4,7 +4,7 @@
 A lightweight, flexible, and type-safe alternative to traditional event emitters.  
 
 <!-- [![npm version](https://img.shields.io/npm/v/flare.svg)](https://www.npmjs.com/package/flare)   -->
-[![License](https://img.shields.io/github/license/xafans/flare)](./LICENSE)&nbsp;&nbsp;[![Build Status](https://github.com/xafans/flare/actions/workflows/ci.yml/badge.svg)](https://github.com/xafans/flare/actions)
+[![License](https://img.shields.io/github/license/xafans/flare)](./LICENSE)&nbsp;&nbsp;[![Build Status](https://github.com/xafans/flare/actions/workflows/ci.yml/badge.svg)](https://github.com/xafans/flare/actions)  
 
 ---
 

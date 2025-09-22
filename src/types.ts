@@ -13,8 +13,9 @@ export type FlareFireOptions = {
     strategy?: FlareFireStrategy;
 };
 
-export type FlareCatchOptions = {
+export type FlareCatchOptions<E, K extends keyof E> = {
     once?: boolean;
+    when?: (payload: E[K]) => boolean;
 };
 
 export type FlareInterceptor<E> = {

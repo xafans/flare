@@ -47,7 +47,7 @@ export class Flare<E extends Record<string, any>> {
     catch<K extends keyof E>(
         event: K,
         handler: FlareHandler<E[K]>,
-        options: FlareCatchOptions = {},
+        options: FlareCatchOptions<E, K> = {}
     ): () => void {
         if (!this.handlerOptionsStore[event]) {
             this.handlerOptionsStore[event] = new Set();
@@ -173,6 +173,9 @@ export class Flare<E extends Record<string, any>> {
         timeout: number | undefined,
         handlerOptions: HandlerOptionsPair<E, K>
     ): Promise<void> {
+        const shouldRun = !handlerOptions.options.when || handlerOptions.options.when(payload);
+        if (!shouldRun) return;
+
         try {
             if (!timeout) return this.call(handlerOptions.handler, payload);
 
@@ -202,5 +205,5 @@ export class Flare<E extends Record<string, any>> {
 
 interface HandlerOptionsPair<E, K extends keyof E> {
     handler: FlareHandler<E[K]>;
-    options: FlareCatchOptions;
+    options: FlareCatchOptions<E, K>;
 };

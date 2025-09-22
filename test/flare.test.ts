@@ -147,4 +147,47 @@ describe('Flare class', () => {
         // Assert
         expect(handler).not.toHaveBeenCalled();
     });
+
+    test('handler runs only when when() returns true', async () => {
+        // Arrange
+        const handler = jest.fn();
+        flare.catch(EVENT_NAME, handler, { when: (payload) => payload === 'run' });
+
+        // Act
+        await flare.fire(EVENT_NAME, 'skip');
+        await flare.fire(EVENT_NAME, 'run');
+
+        // Assert
+        expect(handler).toHaveBeenCalledTimes(1);
+        expect(handler).toHaveBeenCalledWith('run');
+    });
+
+    test('handler can dynamically run and skip across multiple fires', async () => {
+        // Arrange
+        const handler = jest.fn();
+        flare.catch(EVENT_NAME, handler, { when: (payload) => payload.active });
+
+        // Act
+        await flare.fire(EVENT_NAME, { active: false });
+        await flare.fire(EVENT_NAME, { active: true });
+        await flare.fire(EVENT_NAME, { active: false });
+        await flare.fire(EVENT_NAME, { active: true });
+
+        // Assert
+        expect(handler).toHaveBeenCalledTimes(2);
+    });
+
+    test('once handlers with when only removed if executed', async () => {
+        // Arrange
+        const handler = jest.fn();
+        flare.catch(EVENT_NAME, handler, { once: true, when: (payload) => payload.active });
+
+        // Act
+        await flare.fire(EVENT_NAME, { active: false });
+        await flare.fire(EVENT_NAME, { active: true });
+        await flare.fire(EVENT_NAME, { active: true });
+
+        // Assert
+        expect(handler).toHaveBeenCalledTimes(1);
+    });
 });

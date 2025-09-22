@@ -7,9 +7,14 @@ import {
     FlareMiddleware,
 } from './types';
 
+type HandlerOptions<E, K extends keyof E> = {
+    handler: FlareHandler<E[K]>;
+    options: FlareCatchOptions;
+};
+
 export class Flare<E extends Record<string, any>> {
-    private handlers: {
-        [K in keyof E]?: Set<FlareHandler<E[K]>>;
+    private handlerOptions: {
+        [K in keyof E]?: Set<HandlerOptions<E, K>>;
     } = {};
 
     private interceptors: FlareInterceptor<E>[] = [];
@@ -36,7 +41,7 @@ export class Flare<E extends Record<string, any>> {
             return Promise.resolve(`Event "${String(event)}" was stopped by middleware.`);
         }
 
-        const handlers = this.handlers[event];
+        const handlers = this.handlerOptions[event];
         if (!handlers) return Promise.resolve(`No handlers found for event "${String(event)}".`);
 
         const { strategy = FlareFireStrategy.Parallel, timeout, haltOnError = false } = options;
@@ -45,7 +50,7 @@ export class Flare<E extends Record<string, any>> {
             await Promise.allSettled(
                 Array.from(handlers).map(async (handler) => {
                     try {
-                        await this.execute(handler, newPayload, timeout);
+                        await this.execute(event, handler, newPayload, timeout);
                     } catch (err) {
                         // TODO: handle or log exception
                         if (haltOnError) throw err;
@@ -55,7 +60,7 @@ export class Flare<E extends Record<string, any>> {
         } else {
             for (const handler of handlers) {
                 try {
-                    await this.execute(handler, newPayload, timeout);
+                    await this.execute(event, handler, newPayload, timeout);
                 } catch (err) {
                     // TODO: handle or log exception
                     if (haltOnError) break;
@@ -71,19 +76,14 @@ export class Flare<E extends Record<string, any>> {
         handler: FlareHandler<E[K]>,
         options: FlareCatchOptions = {},
     ): () => void {
-        if (!this.handlers[event]) {
-            this.handlers[event] = new Set();
+        if (!this.handlerOptions[event]) {
+            this.handlerOptions[event] = new Set();
         }
 
-        if (options.once) {
-            const wrappedHandler = (payload: E[K]) => {
-                this.call(handler, payload);
-                this.release(event, wrappedHandler);
-            };
-            this.handlers[event]!.add(wrappedHandler);
-        } else {
-            this.handlers[event]!.add(handler);
-        }
+        this.handlerOptions[event].add({
+            handler: handler,
+            options
+        })
 
         return () => this.release(event, handler);
     }
@@ -92,16 +92,24 @@ export class Flare<E extends Record<string, any>> {
         event: K,
         handler: FlareHandler<E[K]>,
     ): void {
-        this.handlers[event]?.delete(handler);
+        const handlers = this.handlerOptions[event];
+        if (!handlers) return;
+
+        for (const h of handlers) {
+            if (h.handler === handler) {
+                handlers.delete(h);
+                break;
+            }
+        }
     }
 
     releaseAll(): void {
-        for (const event in this.handlers) {
-            if (!Object.prototype.hasOwnProperty.call(this.handlers, event)) continue;
-            const handlers = this.handlers[event];
+        for (const event in this.handlerOptions) {
+            if (!Object.prototype.hasOwnProperty.call(this.handlerOptions, event)) continue;
+            const handlers = this.handlerOptions[event];
             handlers?.clear();
         }
-        this.handlers = {};
+        this.handlerOptions = {};
     }
 
     // ==================== internals ====================
@@ -155,13 +163,20 @@ export class Flare<E extends Record<string, any>> {
     }
 
     private async execute<K extends keyof E>(
-        handler: FlareHandler<E[K]>,
+        event: K,
+        handlerOptions: HandlerOptions<E, K>,
         payload: E[K],
         timeout?: number): Promise<void> {
-        if (!timeout) return this.call(handler, payload);
+        try {
+            if (!timeout) return this.call(handlerOptions.handler, payload);
 
-        const timeoutPromise = new Promise<void>((_, reject) => setTimeout(() => reject(new Error('FlareHandler timeout')), timeout));
-        return Promise.race([this.call(handler, payload), timeoutPromise]);
+            const timeoutPromise = new Promise<void>((_, reject) => setTimeout(() => reject(new Error('FlareHandler timeout')), timeout));
+            return Promise.race([this.call(handlerOptions.handler, payload), timeoutPromise]);
+        } finally {
+            if (handlerOptions.options.once) {
+                this.handlerOptions[event]?.delete(handlerOptions);
+            }
+        }
     };
 
     private call<K extends keyof E>(

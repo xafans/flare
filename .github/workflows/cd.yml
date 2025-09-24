@@ -1,11 +1,13 @@
-name: CI
+name: CD
 
 on:
   workflow_dispatch:
-  pull_request:
+  push:
+    branches:
+      - main
 
 jobs:
-  test:
+  release:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -24,3 +26,8 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

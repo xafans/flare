@@ -145,7 +145,7 @@ export class Flare<E extends Record<string, any>> {
 
         // Sort handlers by priority (higher priority first)
         const sortedHandlersBaseOnPriority = Array.from(handlerOptionsSet).sort(
-            (a, b) => (b.options.priority ?? 0) - (a.options.priority ?? 0)
+            (a, b) => (b.options.priority ?? FlareFirePriority.Low) - (a.options.priority ?? FlareFirePriority.Low)
         );
 
         if (strategy === FlareFireStrategy.Parallel) {

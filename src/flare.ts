@@ -1,6 +1,7 @@
 import {
     FlareCatchOptions,
     FlareFireOptions,
+    FlareFirePriority,
     FlareFireStrategy,
     FlareHandler,
     FlareInterceptor,
@@ -142,9 +143,14 @@ export class Flare<E extends Record<string, any>> {
     ) {
         const { strategy = FlareFireStrategy.Parallel, timeout, haltOnError = false } = fireOptions;
 
+        // Sort handlers by priority (higher priority first)
+        const sortedHandlersBaseOnPriority = Array.from(handlerOptionsSet).sort(
+            (a, b) => (b.options.priority ?? FlareFirePriority.Low) - (a.options.priority ?? FlareFirePriority.Low)
+        );
+
         if (strategy === FlareFireStrategy.Parallel) {
             await Promise.allSettled(
-                Array.from(handlerOptionsSet).map(async (handlerOptions) => {
+                sortedHandlersBaseOnPriority.map(async (handlerOptions) => {
                     try {
                         await this.execute(event, newPayload, timeout, handlerOptions);
                     } catch (err) {
@@ -154,7 +160,7 @@ export class Flare<E extends Record<string, any>> {
                 })
             );
         } else {
-            for (const handlerOptions of handlerOptionsSet) {
+            for (const handlerOptions of sortedHandlersBaseOnPriority) {
                 try {
                     await this.execute(event, newPayload, timeout, handlerOptions);
                 } catch (err) {

@@ -7,14 +7,23 @@ export enum FlareFireStrategy {
     Serial = 'serial'
 };
 
+export enum FlareFirePriority {
+    Low,
+    Medium,
+    High,
+    Highest
+};
+
 export type FlareFireOptions = {
     timeout?: number;
     haltOnError?: boolean;
     strategy?: FlareFireStrategy;
+    priority?: FlareFirePriority;
 };
 
 export type FlareCatchOptions<E, K extends keyof E> = {
     once?: boolean;
+    priority?: FlareFirePriority;
     when?: (payload: E[K]) => boolean;
 };
 

@@ -5,6 +5,9 @@ import {
     FlareHandler,
     FlareInterceptor,
     FlareMiddleware,
+    FlareObservationSource,
+    FlareObservationType,
+    FlareObserver,
 } from './types';
 
 export class Flare<E extends Record<string, any>> {
@@ -14,6 +17,7 @@ export class Flare<E extends Record<string, any>> {
 
     private interceptors: FlareInterceptor<E>[] = [];
     private middlewares: FlareMiddleware<E>[] = [];
+    private observers: FlareObserver<E, any>[] = [];
 
     in(interceptor: FlareInterceptor<E>): void {
         this.interceptors.push(interceptor);
@@ -31,13 +35,21 @@ export class Flare<E extends Record<string, any>> {
         const beforeResult = this.handleBeforeInterceptors(event, payload);
         if (beforeResult) return beforeResult;
 
-        const { stopped, newPayload } = await this.handleMiddlewares(event, payload);
+        const { stopped, newPayload, stoppedMiddleware } = await this.handleMiddlewares(event, payload);
+
         if (stopped) {
-            return Promise.resolve(`Event "${String(event)}" was stopped by middleware.`);
+            const message = `Event "${String(event)}" was stopped by middleware${stoppedMiddleware ? ` (${stoppedMiddleware.id})` : ''}.`;
+            this.handleObservers(event, payload, FlareObservationType.Info, stoppedMiddleware?.id, FlareObservationSource.Middleware, message);
+            return Promise.resolve(message);
         }
 
         const handlerOptionsSet = this.handlerOptionsStore[event];
-        if (!handlerOptionsSet) return Promise.resolve(`No handlers found for event "${String(event)}".`);
+
+        if (!handlerOptionsSet) {
+            const message = `No handlers found for event "${String(event)}".`;
+            this.handleObservers(event, payload, FlareObservationType.Warning, undefined, FlareObservationSource.Handler, message);
+            return Promise.resolve(message);
+        }
 
         await this.handleExecute(event, newPayload, options, handlerOptionsSet);
 
@@ -59,6 +71,10 @@ export class Flare<E extends Record<string, any>> {
         })
 
         return () => this.release(event, handler);
+    }
+
+    observe<K extends keyof E>(observer: FlareObserver<E, K>): void {
+        this.observers.push(observer);
     }
 
     release<K extends keyof E>(
@@ -91,10 +107,13 @@ export class Flare<E extends Record<string, any>> {
             try {
                 const shouldContinue = interceptor.before?.(event, payload);
                 if (shouldContinue === false) {
-                    return Promise.resolve(`Event "${String(event)}" was cancelled by interceptor ${interceptor.id ? `(${interceptor.id})` : ""}.`);
+                    const message = `Event "${String(event)}" was cancelled by interceptor${interceptor.id ? ` (${interceptor.id})` : ""}.`;
+                    this.handleObservers(event, payload, FlareObservationType.Info, interceptor.id, FlareObservationSource.Interceptor, message);
+                    return Promise.resolve(message);
                 }
             } catch (error) {
-                // TODO: handle interceptor exception
+                this.handleObservers(event, payload, FlareObservationType.Error, interceptor.id, FlareObservationSource.Interceptor, error);
+                // the event flow should continue even if an interceptor fails!
             }
         }
     }
@@ -104,16 +123,20 @@ export class Flare<E extends Record<string, any>> {
             try {
                 interceptor.after?.(event, payload);
             } catch (error) {
-                // TODO: handle interceptor exception
+                this.handleObservers(event, payload, FlareObservationType.Error, interceptor.id, FlareObservationSource.Interceptor, error);
+                // the event flow should continue even if an interceptor fails!
             }
         }
     }
 
-    private async handleMiddlewares<K extends keyof E>(event: K, payload: E[K]): Promise<{ stopped: boolean, newPayload: E[K] }> {
+    private async handleMiddlewares<K extends keyof E>(event: K, payload: E[K])
+        : Promise<{ stopped: boolean, newPayload: E[K], stoppedMiddleware?: FlareMiddleware<E> }> {
         const middlewares = this.middlewares;
 
+        const dis = this;
         let stopped = false;
         let newPayload = payload;
+        let stoppedMiddleware: FlareMiddleware<E> | undefined = undefined;
 
         if (middlewares.length === 0) return { stopped, newPayload };
 
@@ -122,21 +145,31 @@ export class Flare<E extends Record<string, any>> {
 
         await executeMiddleware(0);
 
-        return { stopped, newPayload };
-
+        return { stopped, newPayload, stoppedMiddleware };
 
         async function executeMiddleware(index: number): Promise<void> {
+            if (stopped) {
+                stoppedMiddleware = middlewares[index - 1];
+                return;
+            }
+
             if (index < middlewares.length) {
                 const middleware = middlewares[index];
                 const context = { event, payload: newPayload, stop, set };
-                await middleware(context, () => executeMiddleware(index + 1));
+                try {
+                    await middleware.fn(context, () => executeMiddleware(index + 1));
+                } catch (error) {
+                    dis.handleObservers(event, payload, FlareObservationType.Error, middleware.id, FlareObservationSource.Middleware, error);
+                    // the event flow should continue if a middleware fails!
+                    return Promise.reject(error);
+                }
             }
         };
     }
 
     private async handleExecute<K extends keyof E>(
         event: K,
-        newPayload: E[K],
+        payload: E[K],
         fireOptions: FlareFireOptions,
         handlerOptionsSet: Set<HandlerOptionsPair<E, K>>
     ) {
@@ -146,21 +179,45 @@ export class Flare<E extends Record<string, any>> {
             await Promise.allSettled(
                 Array.from(handlerOptionsSet).map(async (handlerOptions) => {
                     try {
-                        await this.execute(event, newPayload, timeout, handlerOptions);
-                    } catch (err) {
-                        // TODO: handle or log exception
-                        if (haltOnError) throw err;
+                        await this.execute(event, payload, timeout, handlerOptions);
+                    } catch (error) {
+                        this.handleObservers(event, payload, FlareObservationType.Error, undefined, FlareObservationSource.Handler, error);
+                        if (haltOnError) throw error;
                     }
                 })
             );
         } else {
             for (const handlerOptions of handlerOptionsSet) {
                 try {
-                    await this.execute(event, newPayload, timeout, handlerOptions);
-                } catch (err) {
-                    // TODO: handle or log exception
+                    await this.execute(event, payload, timeout, handlerOptions);
+                } catch (error) {
+                    this.handleObservers(event, payload, FlareObservationType.Error, undefined, FlareObservationSource.Handler, error);
                     if (haltOnError) break;
                 }
+            }
+        }
+    }
+
+    private async handleObservers<T, K extends keyof E>(
+        event: K,
+        payload: E[K],
+        type: FlareObservationType,
+        sourceId: string | undefined,
+        source: FlareObservationSource,
+        arg?: T
+    ) {
+        for (const observer of this.observers) {
+            try {
+                const context = {
+                    event,
+                    payload,
+                    timestamp: Date.now(),
+                    type,
+                    sourceId,
+                    source,
+                };
+                observer.fn(context, arg);
+            } catch (error) {
             }
         }
     }

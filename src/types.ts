@@ -24,12 +24,41 @@ export type FlareInterceptor<E> = {
     after?<K extends keyof E>(event: K, payload: E[K]): void;
 };
 
-export type FlareMiddleware<E extends Record<string, any>> = <K extends keyof E>(
-    context: {
-        event: K;
-        payload: E[K];
-        stop: () => void;
-        set: (newPayload: E[K]) => void;
-    },
-    next: () => Promise<void>
-) => void | Promise<void>;
+export type FlareMiddleware<E extends Record<string, any>> = {
+    id?: string;
+    fn: <K extends keyof E>(
+        context: {
+            event: K;
+            payload: E[K];
+            stop: () => void;
+            set: (newPayload: E[K]) => void;
+        },
+        next: () => Promise<void>
+    ) => void | Promise<void>
+};
+
+export type FlareObserver<E, K extends keyof E> = {
+    id?: string;
+    fn: <T>(
+        context: {
+            event: K,
+            payload: E[K],
+            timestamp: number,
+            type: FlareObservationType,
+            sourceId: string | undefined,
+            source: FlareObservationSource,
+        },
+        arg: T) => void;
+}
+
+export enum FlareObservationType {
+    Info = 'info',
+    Warning = 'warning',
+    Error = 'error'
+};
+
+export enum FlareObservationSource {
+    Interceptor = 'interceptor',
+    Middleware = 'middleware',
+    Handler = 'handler'
+};

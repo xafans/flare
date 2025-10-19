@@ -60,5 +60,6 @@ export enum FlareObservationType {
 export enum FlareObservationSource {
     Interceptor = 'interceptor',
     Middleware = 'middleware',
-    Handler = 'handler'
+    Handler = 'handler',
+    Flare = 'flare'
 };

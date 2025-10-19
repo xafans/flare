@@ -32,6 +32,8 @@ export class Flare<E extends Record<string, any>> {
         payload: E[K],
         options: FlareFireOptions = {},
     ): Promise<string | void> {
+        this.handleObservers(event, payload, FlareObservationType.Info, undefined, FlareObservationSource.Flare, undefined);
+
         const beforeResult = this.handleBeforeInterceptors(event, payload);
         if (beforeResult) return beforeResult;
 
@@ -39,7 +41,7 @@ export class Flare<E extends Record<string, any>> {
 
         if (stopped) {
             const message = `Event "${String(event)}" was stopped by middleware${stoppedMiddleware ? ` (${stoppedMiddleware.id})` : ''}.`;
-            this.handleObservers(event, payload, FlareObservationType.Info, stoppedMiddleware?.id, FlareObservationSource.Middleware, message);
+            this.handleObservers(event, payload, FlareObservationType.Warning, stoppedMiddleware?.id, FlareObservationSource.Middleware, message);
             return Promise.resolve(message);
         }
 
@@ -47,7 +49,7 @@ export class Flare<E extends Record<string, any>> {
 
         if (!handlerOptionsSet) {
             const message = `No handlers found for event "${String(event)}".`;
-            this.handleObservers(event, payload, FlareObservationType.Warning, undefined, FlareObservationSource.Handler, message);
+            this.handleObservers(event, payload, FlareObservationType.Warning, undefined, FlareObservationSource.Flare, message);
             return Promise.resolve(message);
         }
 
@@ -108,7 +110,7 @@ export class Flare<E extends Record<string, any>> {
                 const shouldContinue = interceptor.before?.(event, payload);
                 if (shouldContinue === false) {
                     const message = `Event "${String(event)}" was cancelled by interceptor${interceptor.id ? ` (${interceptor.id})` : ""}.`;
-                    this.handleObservers(event, payload, FlareObservationType.Info, interceptor.id, FlareObservationSource.Interceptor, message);
+                    this.handleObservers(event, payload, FlareObservationType.Warning, interceptor.id, FlareObservationSource.Interceptor, message);
                     return Promise.resolve(message);
                 }
             } catch (error) {

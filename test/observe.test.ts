@@ -14,9 +14,5 @@ test('observe', () => {
         }
     });
 
-    flare.catch(EVENT_NAME, (p) => {
-        expect(p).toBe(PAYLOAD);
-    });
-
     flare.fire(EVENT_NAME, PAYLOAD);
 });

@@ -226,6 +226,7 @@ export class Flare<E extends Record<string, any>> {
                 };
                 observer.fn(context, arg);
             } catch (error) {
+                // The throwing observer should not break others
             }
         }
     }
@@ -242,30 +243,16 @@ export class Flare<E extends Record<string, any>> {
         if (!shouldRun) return;
 
         try {
-            if (!timeout) return this.call(handlerOptions.handler, payload);
+            if (!timeout) return handlerOptions.handler(payload);
 
             const timeoutPromise = new Promise<void>((_, reject) => setTimeout(() => reject(new Error('FlareHandler timeout')), timeout));
-            return Promise.race([this.call(handlerOptions.handler, payload), timeoutPromise]);
+            return Promise.race([handlerOptions.handler(payload), timeoutPromise]);
         } finally {
             if (handlerOptions.options.once) {
                 this.handlerOptionsStore[event]?.delete(handlerOptions);
             }
         }
     };
-
-    private call<K extends keyof E>(
-        handler: FlareHandler<E[K]>,
-        payload: E[K],
-    ) {
-        try {
-            return Promise.resolve(handler(payload)).catch((e) => {
-                // TODO: handle async exception
-            });
-        } catch (error) {
-            // TODO: handle sync exception
-            throw error;
-        }
-    }
 }
 
 interface HandlerOptionsPair<E, K extends keyof E> {

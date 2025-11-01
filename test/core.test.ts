@@ -8,7 +8,7 @@ type Events = {
     remove: { value: number };
 };
 
-describe('Flare - Base features (no middlewares, interceptors, observers)', () => {
+describe('Base features', () => {
     let flare: Flare<Events>;
 
     beforeEach(() => {
@@ -130,7 +130,7 @@ describe('Flare - Base features (no middlewares, interceptors, observers)', () =
             expect(order).toContain('first');
         });
 
-        it('should execute handlers sequentially when strategy=Sequential', async () => {
+        it('should execute handlers sequentially when strategy=Serial', async () => {
             const order: string[] = [];
 
             flare.catch('add', async () => {
@@ -146,7 +146,7 @@ describe('Flare - Base features (no middlewares, interceptors, observers)', () =
             expect(order).toEqual(['first', 'second']);
         });
 
-        it('should respect haltOnError when true (Sequential strategy)', async () => {
+        it('should respect haltOnError when true (Serial strategy)', async () => {
             const order: string[] = [];
 
             flare.catch('add', async () => {
@@ -166,7 +166,7 @@ describe('Flare - Base features (no middlewares, interceptors, observers)', () =
             expect(order).toEqual(['first']); // second should not execute
         });
 
-        it('should continue when haltOnError=false (Sequential strategy)', async () => {
+        it('should continue when haltOnError=false (Serial strategy)', async () => {
             const order: string[] = [];
 
             flare.catch('add', async () => {

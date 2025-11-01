@@ -24,7 +24,7 @@ describe('Middlewares', () => {
                 fn: async (ctx, next) => {
                     calls.push(`before:${ctx.event}:m1`);
                     await next();
-                    calls.push(`after:m1`);
+                    calls.push(`after:${ctx.event}:m1`);
                 },
             });
 
@@ -33,7 +33,7 @@ describe('Middlewares', () => {
                 fn: async (ctx, next) => {
                     calls.push(`before:${ctx.event}:m2`);
                     await next();
-                    calls.push(`after:m2`);
+                    calls.push(`after:${ctx.event}:m2`);
                 },
             });
 
@@ -47,8 +47,8 @@ describe('Middlewares', () => {
             expect(calls).toEqual([
                 'before:send:m1',
                 'before:send:m2',
-                'after:m2',
-                'after:m1',
+                'after:send:m2',
+                'after:send:m1',
                 'handler',
             ]);
         });
@@ -103,13 +103,13 @@ describe('Middlewares', () => {
 
     describe('middleware errors', () => {
         it('should continue event flow but notify observers if middleware throws', async () => {
-            const erroring = {
+            const erroringMiddleware = {
                 id: 'erroring',
                 fn: jest.fn(async () => {
                     throw new Error('boom');
                 }),
             };
-            flare.use(erroring);
+            flare.use(erroringMiddleware);
 
             const handler = jest.fn();
             flare.catch('send', handler);
@@ -124,7 +124,7 @@ describe('Middlewares', () => {
                 expect.objectContaining({
                     type: FlareObservationType.Error,
                     source: FlareObservationSource.Middleware,
-                    sourceId: erroring.id,
+                    sourceId: erroringMiddleware.id,
                 }),
                 expect.any(Error),
             );
@@ -155,16 +155,16 @@ describe('Middlewares', () => {
                 },
             });
 
-            flare.catch('send', () => {order.push('handler')});
+            flare.catch('send', () => { order.push('handler') });
 
             await flare.fire('send', payload);
 
             expect(order).toEqual([
                 'start1',
                 'start2',
-                'handler',
                 'end2',
                 'end1',
+                'handler',
             ]);
         });
     });

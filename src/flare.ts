@@ -151,23 +151,23 @@ export class Flare<E extends Record<string, any>> {
         return { stopped, newPayload, stoppedMiddleware };
 
         async function executeMiddleware(index: number): Promise<void> {
-            if (stopped) {
-                stoppedMiddleware = middlewares[index - 1];
-                return;
-            }
+            if (stopped) return;
+            if (index >= middlewares.length) return Promise.resolve();
 
-            if (index < middlewares.length) {
-                const middleware = middlewares[index];
-                const context = { event, payload: newPayload, stop, set };
-                try {
-                    await middleware.fn(context, () => executeMiddleware(index + 1));
-                } catch (error) {
-                    dis.handleObservers(event, payload, FlareObservationType.Error, middleware.id, FlareObservationSource.Middleware, error);
-                    // the event flow should continue if a middleware fails!
-                    return Promise.reject(error);
+            const middleware = middlewares[index];
+            const context = { event, payload: newPayload, stop, set };
+            const next = async () => await executeMiddleware(index + 1);
+            try {
+                await middleware.fn(context, next);
+                if (stopped) {
+                    stoppedMiddleware = middlewares[index];
                 }
+            } catch (error) {
+                dis.handleObservers(event, payload, FlareObservationType.Error, middleware.id, FlareObservationSource.Middleware, error);
+                // the event flow should continue if a middleware fails!
+                return Promise.reject(error);
             }
-        };
+        }
     }
 
     private async handleExecute<K extends keyof E>(
